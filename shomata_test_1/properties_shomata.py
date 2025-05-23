@@ -26,7 +26,7 @@ def shomate_properties(df: pd.DataFrame, T: float) -> dict:
 
     return {
         'Cp (J/mol·K)': Cp,
-        'H (kJ/mol)': H,
+        'H - H° (kJ/mol)': H,
         'S (J/mol·K)': S,
         'T_used': T,
         'T_range': (row['T_min'], row['T_max'])

@@ -1,0 +1,4 @@
+T_min,T_max,A,B,C,D,E,F,G,H,I,J,S_std
+100.0,700.0,31.32234,-20.23531,57.86644,-36.50624,-0.007374,-8.903471,246.7945,0.0,"Chase, 1998","Data last reviewed in March, 1977; New parameter fit January 2009",205.152
+700.0,2000.0,30.03235,8.772972,-3.988133,0.788313,-0.741599,-11.32468,236.1663,0.0,"Chase, 1998","Data last reviewed in March, 1977; New parameter fit January 2009",205.152
+2000.0,6000.0,20.91111,10.72071,-2.020498,0.146449,9.245722,5.337651,237.6185,0.0,"Chase, 1998","Data last reviewed in March, 1977; New parameter fit January 2009",205.152

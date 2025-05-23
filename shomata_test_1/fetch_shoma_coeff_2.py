@@ -14,37 +14,63 @@ import string
 from cas_lookup import get_cas_number
 
 
-def fetch_shomate_html_async(substance: str):
-    """Async fetch function for Shomate data."""
+
+def fetch_gas_data_page(substance: str) -> BeautifulSoup:
+    """Fetch gas phase thermochemistry page from NIST (with CAS fallback)."""
     base_url = "https://webbook.nist.gov"
 
     def try_fetch(name):
         search_url = f"{base_url}/cgi/cbook.cgi?Name={name.replace(' ', '+')}&Units=SI"
-        response = requests.get(search_url)
-        soup = BeautifulSoup(response.text, 'lxml')
+        soup = BeautifulSoup(requests.get(search_url).text, 'lxml')
         gas_link = soup.find('a', string=re.compile("Gas phase thermochemistry data"))
         return soup, gas_link
 
     soup, gas_link = try_fetch(substance)
 
-    # Retry with CAS if not found
     if not gas_link:
         cas = get_cas_number(substance)
-        if cas and not str(cas).startswith("Error"):
+        if cas:
             soup, gas_link = try_fetch(cas)
 
     if not gas_link:
-        raise ValueError(f"No gas phase thermochemistry data found for '{substance}' (or CAS alternative).")
+        raise ValueError(f"No gas phase thermochemistry data found for '{substance}' (or CAS).")
 
-    gas_soup = BeautifulSoup(requests.get(base_url + gas_link['href']).text, 'lxml')
+    return BeautifulSoup(requests.get(base_url + gas_link['href']).text, 'lxml')
+
+def get_standard_entropy(substance: str):
+    """Extract S°gas,1 bar (J/mol·K) from the gas data page."""
+    gas_soup = fetch_gas_data_page(substance)
+    text = gas_soup.get_text()
+    match = re.search(r"S°gas,1\s*bar\s*([\d.]+)", text)
+    if match:
+        return float(match.group(1))
+    raise ValueError(f"Standard entropy (S°gas,1 bar) not found for '{substance}'.")
+
+def fetch_shomate_html_async(substance: str):
+    """Extract Shomate equation HTML table from gas data page."""
+    gas_soup = fetch_gas_data_page(substance)
     for table in gas_soup.find_all('table', class_='data'):
         caption = table.find_previous_sibling('h3')
         if caption and 'Shomate Equation' in caption.text:
             return table
-    raise ValueError(f"No Shomate equation table found for '{substance}' (or CAS alternative).")
+    raise ValueError(f"No Shomate equation table found for '{substance}'.")
 
+def fetch_multiple_standard_entropies(substance_list):
+    """Parallel fetching of standard entropy values."""
+    result = {}
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        futures = {executor.submit(get_standard_entropy, substance): substance for substance in substance_list}
+        for future in concurrent.futures.as_completed(futures):
+            substance = futures[future]
+            try:
+                entropy = future.result()
+                result[substance] = entropy
+            except Exception as e:
+                result[substance] = f"Error: {e}"
+    return result
 
 def fetch_multiple_substances_parallel(substance_list):
+    """Parallel fetching of Shomate HTML tables (to be parsed downstream)."""
     result = {}
     with concurrent.futures.ThreadPoolExecutor() as executor:
         futures = {executor.submit(fetch_shomate_html_async, substance): substance for substance in substance_list}
